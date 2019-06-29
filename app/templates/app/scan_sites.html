@@ -1,0 +1,253 @@
+﻿{% extends "app/layout.html" %}
+{% block content %}
+{% load staticfiles %}
+<h2 class="header">{{ title }} <small>{{ message }}</small></h2>
+
+<div class="tabholder">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="basic-tab" data-toggle="tab" href="#basic" role="tab" aria-controls="basic" aria-selected="false">Basic Data</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Contact</a>
+      </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+        <div class="box">
+            <button class="btn btn-primary btn-lg pull-right btn_start_scan" data-loading-text="Loading...">Start Site Scan</button>
+        </div>
+        <div id="stats">
+        </div>
+      </div>
+      <div class="tab-pane fade" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+        <div class="box">
+            <button class="btn btn-primary btn-lg pull-right btn_start_scan" data-loading-text="Loading...">Start Site Scan</button>
+        </div>
+        <table id="example" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>County</th>
+                    <th>Address</th>
+                    <th>Sale Date</th>
+                    <th>Case</th>
+                    <th>Court SP</th>
+                    <th>Bid</th>
+                    <th>Site</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>County</th>
+                    <th>Address</th>
+                    <th>Sale Date</th>
+                    <th>Case</th>
+                    <th>Court SP</th>
+                    <th>Bid</th>
+                    <th>Site</th>
+                    <th>Comment</th>
+                </tr>
+            </tfoot>
+        </table>
+      </div>
+      <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">
+        <div class="box">
+            <button id="btn_search_all" class="btn btn-success btn-lg" data-loading-text="Loading...">Search For All</button>
+            <button id="btn_search_pending" class="btn btn-success btn-lg" data-loading-text="Loading...">Search For Pending</button>
+        </div>
+
+      </div>
+    </div>
+</div>
+
+<div id="progress_bar">
+    <h3 id="site"></h3>
+    <h3 id="progress_text"></h3>
+    <img src="{% static 'app/images/progress.svg' %}" />
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function () {
+        $('#progress_bar').fadeOut();
+        $('#myTab li:first-child a').tab('show');
+        fill_stats();
+        fill_sites();
+        //Scan Sites
+        $(".btn_start_scan").click(function () {
+            $('#myTab a[href="#basic"]').tab('show')
+            $(this).button('loading');
+            $('#progress_bar').fadeIn();
+            $(".btn_start_scan").prop('disabled', true);
+            setTimeout(increment, 2500);
+            $.get("ajax-scan-sites", function (data, status) {
+                $('#progress_bar').fadeOut();
+                $(".btn_start_scan").button('reset');
+            });
+        });
+
+        //Search All Records
+        $("#btn_search_all").click(function () {
+            $("#progress_bar").fadeIn();
+            $(this).button('loading');
+            setTimeout(increment, 2500);
+            $.get("ajax-search", function (data, status) {
+                console.log(data);
+                $("#progress_bar").fadeOut();
+                $("#btn_search_all").button('reset');
+            });
+        });
+        $("#btn_search_pending").click(function () {
+            $(this).button('loading');
+            $("#progress_bar").fadeIn();
+            $.get("ajax-search1", function (data, status) {
+                console.log(data);
+                $("#progress_bar").fadeOut();
+            });
+        });
+        $.ajaxSetup({
+            beforeSend:function (xhr, settings) {
+                if (settings.context != undefined && settings.context.hasClass('btn')) {
+                    settings.context.button('loading');
+                }
+            },
+            complete:function () {
+                $(".btn_start_scan").button('reset');
+                $("#btn_search_all").button('reset');
+                $("#btn_search_pending").button('reset');
+            },
+            error: function(xhr, status, error) {
+                alert("Opps(" + status + ")\nError: " + error);
+                $("#progress_bar").fadeOut();
+                $(".btn_start_scan").button('reset');
+                $("#btn_search_all").button('reset');
+                $("#btn_search_pending").button('reset');
+            }
+        });
+    });
+    function increment() {
+        $.getJSON("json-status", function (data, status) {
+            if (status == 'success') {
+                $("#site").text('Scanning ' + data.site)
+                $("#progress_text").text(data.count + ' Records Added')
+                if (data.status != 'completed') {
+                    setTimeout(increment, 2000);
+                } else {
+                    $("#site").text('Completed ' + data.site)
+                    $("#progress_text").text(data.count + ' Records Added')
+                    fill_sites();
+                }
+            }
+        });
+    };
+    function fill_stats() {
+        $.getJSON("json-stats", function (data, status) {
+            if (status == 'success') {
+                str = '<table class="table table-striped">';
+                str += '<thead class="thead-dark">';
+                str += '<th scope="col">Name</th>';
+                str += '<th scope="col">Total</th>';
+                str += '<th scope="col">Pending</th>';
+                str += '<th scope="col">Not Found</th>';
+                str += '<th scope="col">Found</th>';
+                str += '</thead>';
+                str += '<tbody>';
+                total = 0;
+                pending = 0;
+                not_found = 0;
+                found = 0;
+                Object.keys(data).forEach(function (key) {
+                    console.table('Key : ' + key + ', Value : ' + data[key])
+                    str += '<tr>';
+                    str += '<th scope="row">'+key+'</th>';
+                    str += '<td>'+data[key].total+'</td>';
+                    str += '<td>'+data[key].pending+'</td>';
+                    str += '<td>'+data[key].not_found+'</td>';
+                    str += '<td>'+data[key].found+'</td>';
+                    str += '</tr>';
+                    total = total + data[key].total;
+                    pending = pending + data[key].pending;
+                    not_found = not_found + data[key].not_found;
+                    found = found + data[key].found;
+                });
+                str += '</tbody>';
+                str += '<tfoot class="thead-dark">';
+                str += '<th scope="col">Total</th>';
+                str += '<th scope="col">'+total+'</th>';
+                str += '<th scope="col">'+pending+'</th>';
+                str += '<th scope="col">'+not_found+'</th>';
+                str += '<th scope="col">'+found+'</th>';
+                str += '</tfoot>';
+                str += '</table>';
+                $("#stats").html(str);
+            }
+        });
+    }
+    function fill_sites() {
+        $('#example').DataTable({  
+           "ajax"     :     "json-sites",  
+           "columns"     :     [  
+                {     "data"     :     "id"     },  
+                {     "data"     :     "county"     },  
+                {     "data"     :     "address"},  
+                {     "data"     :     "sale_date"}  ,  
+                {     "data"     :     "case"}  ,  
+                {     "data"     :     "courtsp"},  
+                {     "data"     :     "bid"},  
+                {     "data"     :     "site"},  
+                {     "data"     :     "comment"}  
+            ],
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ],
+            "bDestroy": true,
+            "pageLength": 50
+        });
+    }
+</script>
+<!--"scrollX": true for datatable x scrollbars-->
+<link href="//cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet" />
+<script src="//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.flash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.print.min.js"></script>
+<style>
+    .tabholder {
+        padding:5px;
+        margin:2px;
+        width:100%;
+        background-color:white;
+    }
+    #progress_bar {
+        background: rgba(255, 255, 255, 0.68);
+        color: #666666;
+        position: fixed;
+        height: 100%;
+        width: 100%;
+        z-index: 5000;
+        top: 0;
+        left: 0;
+        float: left;
+        text-align: center;
+        padding-top: 10%;
+    }
+    .box {
+        padding:5px;
+        text-align:right;
+    }
+</style>
+{% endblock %}

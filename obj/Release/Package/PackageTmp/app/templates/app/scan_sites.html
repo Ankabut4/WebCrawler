@@ -1,0 +1,154 @@
+﻿{% extends "app/layout.html" %}
+{% block content %}
+{% load staticfiles %}
+<h2 class="header">{{ title }} <small>{{ message }}</small></h2>
+
+<div class="tabholder">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="basic-tab" data-toggle="tab" href="#basic" role="tab" aria-controls="basic" aria-selected="false">Basic Data</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">Contact</a>
+      </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+      <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">...</div>
+      <div class="tab-pane fade" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+          <button id="btn_start_scan" class="btn btn-primary btn-lg pull-right">Start Site Scan</button>
+        <table id="example" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>County</th>
+                    <th>Address</th>
+                    <th>Sale Date</th>
+                    <th>Case</th>
+                    <th>Court SP</th>
+                    <th>Bid</th>
+                    <th>Site</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>County</th>
+                    <th>Address</th>
+                    <th>Sale Date</th>
+                    <th>Case</th>
+                    <th>Court SP</th>
+                    <th>Bid</th>
+                    <th>Site</th>
+                    <th>Comment</th>
+                </tr>
+            </tfoot>
+        </table>
+      </div>
+      <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">...</div>
+    </div>
+</div>
+
+<button id="btn_search_all" class="btn btn-success btn-lg">Search For All</button>
+<button id="btn_search_pending" class="btn btn-success btn-lg">Search For Pending</button>
+<div class="text-center" id="progress_bar">
+    <h3 id="site"></h3>
+    <h3 id="progress_text"></h3>
+    <img src="{% static 'app/images/progress.svg' %}" />
+</div>
+<br /><br />
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function () {
+        $("#progress_bar").hide();
+        $('#myTab li:first-child a').tab('show');
+        fill_sites();
+        //Scan Sites
+        $("#btn_start_scan").click(function () {
+            $("#progress_bar").show();
+            $("#btn_start_scan").prop('disabled', true);
+            setTimeout(increment, 2500);
+            $.get("ajax-scan-sites", function (data, status) {
+                $("#progress_bar").hide();
+                $("#btn_start_scan").prop('disabled', false);
+            });
+        });
+
+        //Search All Records
+        $("#btn_search_all").click(function () {
+            $("#progress_bar").show();
+            $("#btn_search_all").prop('disabled', true);
+            //setTimeout(increment, 2500);
+            $.get("ajax-search", function (data, status) {
+                console.log(data);
+                $("#progress_bar").hide();
+                $("#btn_search_all").prop('disabled', false);
+            });
+        });
+
+    });
+    function increment() {
+        $.getJSON("json-status", function (data, status) {
+            if (status == 'success') {
+                $("#site").text('Scanning ' + data.site)
+                $("#progress_text").text(data.count + ' Records Added')
+                if (data.status != 'completed') {
+                    setTimeout(increment, 2000);
+                } else {
+                    $("#site").text('Completed ' + data.site)
+                    $("#progress_text").text(data.count + ' Records Added')
+                    fill_sites();
+                }
+            }
+        });
+    };
+    function fill_sites() {
+        $('#example').DataTable({  
+           "ajax"     :     "json-sites",  
+           "columns"     :     [  
+                {     "data"     :     "id"     },  
+                {     "data"     :     "county"     },  
+                {     "data"     :     "address"},  
+                {     "data"     :     "sale_date"}  ,  
+                {     "data"     :     "case"}  ,  
+                {     "data"     :     "courtsp"},  
+                {     "data"     :     "bid"},  
+                {     "data"     :     "site"},  
+                {     "data"     :     "comment"}  
+            ],
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ],
+            "bDestroy": true,
+            "pageLength": 50
+        });
+    }
+</script>
+<!--"scrollX": true for datatable x scrollbars-->
+<link href="//cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css" rel="stylesheet" />
+<script src="//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.flash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.5.6/js/buttons.print.min.js"></script>
+<style>
+    .tabholder {
+        padding:5px;
+        margin:2px;
+        width:100%;
+        background-color:white;
+    }
+</style>
+{% endblock %}
